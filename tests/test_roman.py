@@ -14,3 +14,6 @@ def test_hard1():
 
 def test_hard2():
     assert roman_numbers.convert_to_numbers('DCXLIX') == 649
+
+def test_hard3():
+    assert roman_numbers.convert_to_numbers('MMXXII') == 2022
