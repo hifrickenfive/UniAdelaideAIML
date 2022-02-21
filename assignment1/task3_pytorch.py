@@ -4,6 +4,7 @@
 # Krishna Ramesh: https://www.youtube.com/watch?v=ijaT8HuCtIY&ab_channel=KrishnaRamesh 
 
 # References to setup CNN
+# https://www.youtube.com/watch?v=wnK3uWv_WkU&list=RDCMUCkzW5JSFwvKRjXABI-UTAkQ&start_radio=1&rv=wnK3uWv_WkU&t=601&ab_channel=AladdinPersson
 # https://shap.readthedocs.io/en/latest/example_notebooks/image_examples/image_classification/PyTorch%20Deep%20Explainer%20MNIST%20example.html
 # https://towardsdatascience.com/mnist-handwritten-digits-classification-using-a-convolutional-neural-network-cnn-af5fafbc35e9
 # https://stackoverflow.com/questions/63754645/convert-conv2d-to-linear
@@ -12,52 +13,66 @@
 # Conv layer needs matrices as inputs while linear layers need flattened vectors.
 # Kernel size can't be greater than actual input size
 
-# from sklearn.metrics import accuracy_score
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset, ConcatDataset
 from torchvision.transforms import ToTensor
 from torchvision import datasets
 from torch import optim
 from torch import nn
+import numpy as np
 import matplotlib.pyplot as plt
 
-train_data = datasets.MNIST(
-    root = 'data',
-    train = True,                         
-    transform = ToTensor(), 
-    download = True,            
-)
-test_data = datasets.MNIST(
-    root = 'data', 
-    train = False, 
-    transform = ToTensor()
-)
+def get_data(train_cut=0.7, val_cut=0.1, test_cut=0.2, concat=False):
+    """Get the MNIST dataset via pytorch.
+    Then slice the MNIST dataset into a training, validation and test set.
 
-# all_data = torch.utils.data.ConcatDataset([train_data, test_data])
-all_data = train_data
-print(f'There is now {len(all_data)} data instances in all_data.')
+    Args:
+        train_cut (float, optional): Fraction of total MNIST data allocated for training. Defaults to 0.7.
+        val_cut (float, optional): Fraction of total MNIST data. Defaults to 0.1.
+        test_cut (float, optional): Fraction of total MNIST data. Defaults to 0.2.
+        concat (boolean, optional): True to concatenat the MNIST training and data set before slicing.
+    """
+    train_data = datasets.MNIST(
+        root = 'data',
+        train = True,                         
+        transform = ToTensor(), 
+        download = True,            
+    )
 
-# Recut all_data: 70% training, 20% test, 10% validation.
-idx_train = int(len(all_data)*0.7)
-idx_test = idx_train + int(len(all_data)*0.2)
-idx_validation = len(all_data)
+    test_data = datasets.MNIST(
+        root = 'data', 
+        train = False, 
+        transform = ToTensor()
+    )
 
-train_indices = list(range(0, idx_train))
-train_data_resliced = torch.utils.data.Subset(all_data, train_indices)
-print(f'There is now {len(train_data_resliced)} data instances in train_data_resliced (70% of all_data).')
-
-test_indices = list(range(idx_train, idx_test))
-test_data_resliced = torch.utils.data.Subset(all_data, test_indices)
-print(f'There is now {len(test_data_resliced)} data instances in test_data_resliced (20% of all_data).')
-
-validation_indices = list(range(idx_test, idx_validation))
-val_data = torch.utils.data.Subset(all_data, validation_indices)
-print(f'There is now {len(val_data)} data instances in validation_data (10% of all_data).')
+    if concat:
+        all_data = ConcatDataset([train_data, test_data])
+    else:
+        all_data = train_data
 
 
-# Get cpu or gpu device for training.
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using {device} device")
+    idx_train = int(len(all_data)*train_cut)
+    idx_validation = idx_train + int(len(all_data)*val_cut)
+
+    train_indices = list(range(0, idx_train))
+    train_data_resliced = Subset(all_data, train_indices)
+
+    validation_indices = list(range(idx_train, idx_validation))
+    val_data = Subset(all_data, validation_indices)
+
+    test_indices = list(range(idx_validation, len(all_data)))
+    test_data_resliced = Subset(all_data, test_indices)
+
+    print("\n Get data\n-------------------------------")
+    print(f'Contenate MNIST: {concat}.')
+    print(f'There is {len(all_data)} data instances in the set before reslicing.')
+
+    print(f"\n Reslice data\n-------------------------------")
+    print(f'Len training is {len(train_data_resliced)} ({train_cut} of the initial set).')
+    print(f'Len validation set {len(val_data)} ({val_cut} of the initial set).')
+    print(f'Len test set is {len(test_data_resliced)} ({test_cut} of the initial set).')
+
+    return(train_data_resliced, val_data, test_data_resliced)
 
 # Define models
 class NN_linear(nn.Module):
@@ -79,36 +94,38 @@ class NN_linear(nn.Module):
 
 
 class NN_CNN(nn.Module):
-    def __init__(self):
+    def __init__(self, in_channels=1, num_classes=10):
         super(NN_CNN, self).__init__()
 
         self.conv_layers = nn.Sequential(
-            nn.Conv2d(1, 10, kernel_size=5), # Args: channel in, channel out, kernel size
-            nn.MaxPool2d(2),
+            nn.Conv2d(in_channels, 8, kernel_size=3, stride=1, padding=1), # Input channel is 1 because MNIST is an image with 1 grey scale channel. Output channels is arbitrary.
+            nn.MaxPool2d(kernel_size=2, stride=2), # maxpool with kernel size 2 halves the 28x28 image into 14x14
             nn.ReLU(),
 
-            nn.Conv2d(10, 20, kernel_size=5),
-            nn.Dropout(),
-            nn.MaxPool2d(2),
+            nn.Conv2d(8, 16, kernel_size=3, stride=1, padding=1),
+            nn.MaxPool2d(kernel_size=2, stride=2),  # maxpool with kernel size 2 halves the 14x14 into 7x7
             nn.ReLU(),
 
-            nn.Conv2d(20, 40, kernel_size=3),
-            nn.Dropout(),
-            nn.MaxPool2d(2),
-            nn.ReLU(),
+            # nn.Conv2d(20, 40, kernel_size=3),
+            # # nn.Dropout(),
+            # nn.MaxPool2d(2),
+            # nn.ReLU(),e
         )
         self.fc_layers = nn.Sequential(
-            nn.Linear(40, 50), #2nd layer creats 20x4x4 outputs. 3rd layer creates 40 outputs x 1 x 1 as f(kernel size, padding, output of layer 2)
-            nn.ReLU(),
-            nn.Dropout(),
-            nn.Linear(50, 10),
-            nn.Softmax(dim=1)
+            nn.Linear(16*7*7, num_classes),
+            # nn.ReLU(),
+            # nn.Dropout(),
+            # nn.Linear(50, 10),
+            # nn.Softmax(dim=1) # Maps non-normalised inputs into a set of exponentiated and normalised probabilities.
         )
 
     def forward(self, x):
-        x = self.conv_layers(x)
-        # Since you need matrices for conv. layers and for vectors linear layers, you have to take the matrix an flatten it, for example a matrix of shape (m, n) would become a vector (m*n, 1).
-        x = x.view(-1, x.size()[1] * x.size()[2] * x.size()[3]) # torch.Size([32, 20, 4, 4]). Batch size 32x of 20 output channels x 4 x 4
+        x = self.conv_layers(x) 
+        
+        # Flatten the 28x28 into 
+        # CNNs require matrices data type while linear layers need flat vectors. So we need to flatten the CNN output matrix i.e (m, n) would become a vector (m*n, 1).
+        # x = x.view(-1, x.size()[1] * x.size()[2] * x.size()[3]) # torch.Size([32, 20, 4, 4]). Batch size 32x of 20 output channels x 4 x 4
+        x = x.reshape(x.shape[0], -1)
         x = self.fc_layers(x)
         return x
 
@@ -118,13 +135,13 @@ def train(dataloader, model, loss_function, optimiser):
     model.train()
 
     for batch, (X, y) in enumerate(dataloader):
-        X, y = X.to(device), y.to(device)
+        X, y = X.to("cpu"), y.to("cpu")
 
-        # Compute predication error
+        # Forward. Get prediction error
         logits = model(X) # Predict the result given this images
         J = loss_function(logits, y)
 
-        # Backpropagration
+        # Backwards
         model.zero_grad() # Equivalent to optimser.zero_grad() or params.grad._zero()
         J.backward() # Accumulate the partial derivatives of J wrt params. Equivalent to params.grad._sum(dJ/dparams)
         optimiser.step() # Step in the opposite direction of the gradient
@@ -141,13 +158,13 @@ def eval_model(dataloader, model, loss_fn, data_group):
     test_loss, correct = 0, 0
     with torch.no_grad():
         for X, y in dataloader:
-            X, y = X.to(device), y.to(device)
+            X, y = X.to("cpu"), y.to("cpu")
             pred = model(X)
             test_loss += loss_fn(pred, y).item()
             correct += (pred.argmax(1) == y).type(torch.float).sum().item()
     test_loss /= num_batches
     correct /= size
-    print(f"{data_group} Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f}")
+    print(f"{data_group} Result: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f}")
 
     return 100*correct, test_loss
 
@@ -172,44 +189,54 @@ def plot_curve(num_epochs, train_result, val_result, test_result, result_type=''
     plt.xticks(epochs, epochs)
     plt.show()
 
+def plot_image_and_label(data_label_pair: list):
+    plt.imshow(np.squeeze(data_label_pair[0]))
+    plt.title(f'Label: {data_label_pair[1]}')
 
-# Load data into Pytorch loader
-train_loader = DataLoader(train_data_resliced, batch_size=32)
-val_loader = DataLoader(val_data, batch_size=32)
-test_loader = DataLoader(test_data_resliced, batch_size=32)
+if __name__ == '__main__':
+    # Set hyperparams
+    epochs = 5
 
-# Setup model inputs
-model = NN_linear()
-# model = NN_CNN()
-optimiser = optim.SGD(model.parameters(), lr=1e-2)
-loss_function = nn.CrossEntropyLoss() # This defines how the optimiser changes the NN parameters
+    # Get data
+    train_data, val_data, test_data = get_data()
 
-# Train model
-epochs = 5
-acc_train = []
-loss_train = []
-acc_val = []
-loss_val = []
-acc_test = []
-loss_test = []
+    # Load data into Pytorch loader
+    train_loader = DataLoader(train_data, batch_size=32) 
+    val_loader = DataLoader(val_data, batch_size=32)
+    test_loader = DataLoader(test_data, batch_size=32)
 
-for i in range(epochs):
-    print(f"\n Epoch {i+1}\n-------------------------------")
-    train(train_loader, model, loss_function, optimiser)
+    # Setup model
+    # model = NN_linear()
+    model = NN_CNN()
+    optimiser = optim.SGD(model.parameters(), lr=1e-2)
+    loss_function = nn.CrossEntropyLoss()
 
-    _acc_train, _loss_train = eval_model(train_loader, model, loss_function, 'Training')
-    _acc_val, _loss_val = eval_model(val_loader, model, loss_function, 'Validation')
-    _acc_test, _loss_test = eval_model(test_loader, model, loss_function, 'Test')
+    # Train model over number of epochs
+    acc_train = []
+    loss_train = []
+    acc_val = []
+    loss_val = []
+    acc_test = []
+    loss_test = []
 
-    acc_train.append(_acc_train) 
-    acc_val.append(_acc_val)
-    acc_test.append(_acc_test)
+    for i in range(epochs):
+        print(f"\n Epoch {i+1}\n-------------------------------")
+        train(train_loader, model, loss_function, optimiser)
 
-    loss_train.append(_loss_train)
-    loss_val.append(_loss_val)
-    loss_test.append(_loss_test)
+        _acc_train, _loss_train = eval_model(train_loader, model, loss_function, 'Training')
+        _acc_val, _loss_val = eval_model(val_loader, model, loss_function, 'Validation')
+        _acc_test, _loss_test = eval_model(test_loader, model, loss_function, 'Test')
 
-print("Done!")
+        acc_train.append(_acc_train) 
+        acc_val.append(_acc_val)
+        acc_test.append(_acc_test)
 
-plot_curve(epochs, acc_train, acc_val, acc_test, 'accuracy')
-plot_curve(epochs, loss_train, loss_val, loss_test, 'loss')
+        loss_train.append(_loss_train)
+        loss_val.append(_loss_val)
+        loss_test.append(_loss_test)
+
+    print("Done!")
+
+    # Plot results
+    plot_curve(epochs, acc_train, acc_val, acc_test, 'accuracy')
+    plot_curve(epochs, loss_train, loss_val, loss_test, 'loss')
