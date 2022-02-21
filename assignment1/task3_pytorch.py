@@ -63,11 +63,11 @@ def get_data(train_cut=0.7, val_cut=0.1, test_cut=0.2, concat=False):
     test_indices = list(range(idx_validation, len(all_data)))
     test_data_resliced = Subset(all_data, test_indices)
 
-    print("\n Get data\n-------------------------------")
+    print_banner('Getting the MNIST dataset...')
     print(f'Contenate MNIST: {concat}.')
     print(f'There is {len(all_data)} data instances in the set before reslicing.')
 
-    print(f"\n Reslice data\n-------------------------------")
+    print_banner('Reslicing the dataset...')
     print(f'Len training is {len(train_data_resliced)} ({train_cut} of the initial set).')
     print(f'Len validation set {len(val_data)} ({val_cut} of the initial set).')
     print(f'Len test set is {len(test_data_resliced)} ({test_cut} of the initial set).')
@@ -80,8 +80,8 @@ class NN_linear(nn.Module):
         super(NN_linear, self).__init__()
         self.flatten = nn.Flatten() # converts 2D arrays into one contiguous array.
         self.linear_relu_stack = nn.Sequential( 
-            nn.Linear(28*28, 512), # args for CNN: input channels, output channels, kernel_size
-            nn.ReLU(), # an activation layer that introduces non-linearities to the linear model
+            nn.Linear(28*28, 512),
+            nn.ReLU(),
             nn.Linear(512, 512),
             nn.ReLU(),
             nn.Linear(512, 10)
@@ -106,67 +106,64 @@ class NN_CNN(nn.Module):
             nn.MaxPool2d(kernel_size=2, stride=2),  # maxpool with kernel size 2 halves the 14x14 into 7x7
             nn.ReLU(),
 
-            # nn.Conv2d(20, 40, kernel_size=3),
-            # # nn.Dropout(),
-            # nn.MaxPool2d(2),
-            # nn.ReLU(),e
         )
         self.fc_layers = nn.Sequential(
-            nn.Linear(16*7*7, num_classes),
-            # nn.ReLU(),
-            # nn.Dropout(),
-            # nn.Linear(50, 10),
-            # nn.Softmax(dim=1) # Maps non-normalised inputs into a set of exponentiated and normalised probabilities.
+            nn.Linear(16*7*7, num_classes), # Do not add an activation function after this. This is the final output layer!
         )
 
     def forward(self, x):
+        # CNNs are designed for images, so we can input the image directly
         x = self.conv_layers(x) 
         
-        # Flatten the 28x28 into 
-        # CNNs require matrices data type while linear layers need flat vectors. So we need to flatten the CNN output matrix i.e (m, n) would become a vector (m*n, 1).
-        # x = x.view(-1, x.size()[1] * x.size()[2] * x.size()[3]) # torch.Size([32, 20, 4, 4]). Batch size 32x of 20 output channels x 4 x 4
+        # Linear layers need a flat array
         x = x.reshape(x.shape[0], -1)
         x = self.fc_layers(x)
         return x
 
 
-def train(dataloader, model, loss_function, optimiser):
-    size = len(dataloader.dataset)
+def train_model(dataloader, model, loss_function, optimiser):
+    num_images_in_dataset = len(dataloader.dataset)
     model.train()
 
     for batch, (X, y) in enumerate(dataloader):
         X, y = X.to("cpu"), y.to("cpu")
 
-        # Forward. Get prediction error
-        logits = model(X) # Predict the result given this images
-        J = loss_function(logits, y)
+        # Forward
+        prediction = model(X)
+        loss = loss_function(prediction, y)
 
         # Backwards
         model.zero_grad() # Equivalent to optimser.zero_grad() or params.grad._zero()
-        J.backward() # Accumulate the partial derivatives of J wrt params. Equivalent to params.grad._sum(dJ/dparams)
+        loss.backward() # Accumulate the partial derivatives of J wrt params. Equivalent to params.grad._sum(dJ/dparams)
         optimiser.step() # Step in the opposite direction of the gradient
 
         if batch % 100 == 0:
-            loss, current = J.item(), batch * len(X)
-            print(f"loss: {loss:>7f}, [{current:>5d}/{size:>5d}]")
+            loss, count_images_processed = loss.item(), batch * len(X)
+            print(f"Batch: {batch}, Loss: {loss:>0.4f}%, Images processed: {count_images_processed}/{num_images_in_dataset}")
 
 
-def eval_model(dataloader, model, loss_fn, data_group):
+def eval_model(dataloader, model, loss_function, data_group):
     size = len(dataloader.dataset)
-    num_batches = len(dataloader)
+    num_images_in_dataset = len(dataloader)
     model.eval()
-    test_loss, correct = 0, 0
+
+    losses = 0
+    correct_prediction= 0
+
     with torch.no_grad():
         for X, y in dataloader:
             X, y = X.to("cpu"), y.to("cpu")
-            pred = model(X)
-            test_loss += loss_fn(pred, y).item()
-            correct += (pred.argmax(1) == y).type(torch.float).sum().item()
-    test_loss /= num_batches
-    correct /= size
-    print(f"{data_group} Result: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f}")
 
-    return 100*correct, test_loss
+            # Forward
+            prediction = model(X)
+            losses += loss_function(prediction, y).item()
+            correct_prediction += (prediction.argmax(1) == y).type(torch.float).sum().item()
+
+    av_loss = losses / num_images_in_dataset
+    correct_prediction /= size
+    print(f"{data_group} Result: \n Accuracy: {(100*correct_prediction):>0.1f}%, Average loss: {av_loss:>5f}")
+
+    return 100*correct_prediction, losses
 
 
 def plot_curve(num_epochs, train_result, val_result, test_result, result_type=''):
@@ -192,6 +189,11 @@ def plot_curve(num_epochs, train_result, val_result, test_result, result_type=''
 def plot_image_and_label(data_label_pair: list):
     plt.imshow(np.squeeze(data_label_pair[0]))
     plt.title(f'Label: {data_label_pair[1]}')
+
+def print_banner(message):
+    print('\n**************************************************')
+    print(message)
+    print('**************************************************')
 
 if __name__ == '__main__':
     # Set hyperparams
@@ -220,8 +222,8 @@ if __name__ == '__main__':
     loss_test = []
 
     for i in range(epochs):
-        print(f"\n Epoch {i+1}\n-------------------------------")
-        train(train_loader, model, loss_function, optimiser)
+        print_banner('Running Epoch '+ str(i+1) + ' of ' + str(epochs) +'...')
+        train_model(train_loader, model, loss_function, optimiser)
 
         _acc_train, _loss_train = eval_model(train_loader, model, loss_function, 'Training')
         _acc_val, _loss_val = eval_model(val_loader, model, loss_function, 'Validation')
@@ -235,8 +237,9 @@ if __name__ == '__main__':
         loss_val.append(_loss_val)
         loss_test.append(_loss_test)
 
-    print("Done!")
+    print_banner('Training complete! Phew that was exhausting.')
 
     # Plot results
+    print_banner('Plotting...remember to close each plot to resume the script.')
     plot_curve(epochs, acc_train, acc_val, acc_test, 'accuracy')
     plot_curve(epochs, loss_train, loss_val, loss_test, 'loss')
