@@ -11,6 +11,3 @@ def test_sample_cases3():
 
 def test_corner_case1():
     assert count_carries.count_carries(900, 100) == 1
-
-def test_minus():
-    assert count_carries.count_carries(900, -100) == 0

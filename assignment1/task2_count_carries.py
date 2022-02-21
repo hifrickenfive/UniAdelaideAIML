@@ -23,3 +23,14 @@ def count_carries(number_a: int, number_b: int) -> int:
             num_carries += 1
 
     return num_carries
+
+if __name__ == '__main__':
+    # COMPSCI7327's test cases
+    assert count_carries(123, 456) == 0
+    assert count_carries(555, 555) == 3
+    assert count_carries(123, 594) == 1
+
+    # Extra test case
+    assert count_carries(900, 100) == 1
+
+    print('All test case passed.')

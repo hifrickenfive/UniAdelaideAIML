@@ -65,11 +65,11 @@ class NN_linear(nn.Module):
         super(NN_linear, self).__init__()
         self.flatten = nn.Flatten() # converts 2D arrays into one contiguous array.
         self.linear_relu_stack = nn.Sequential( 
-            nn.Linear(28*28, 64), # args for CNN: input channels, output channels, kernel_size
+            nn.Linear(28*28, 512), # args for CNN: input channels, output channels, kernel_size
             nn.ReLU(), # an activation layer that introduces non-linearities to the linear model
-            nn.Linear(64, 64),
+            nn.Linear(512, 512),
             nn.ReLU(),
-            nn.Linear(64, 10)
+            nn.Linear(512, 10)
         )
 
     def forward(self, x):

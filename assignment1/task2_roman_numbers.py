@@ -1,7 +1,6 @@
 import math
 
-
-def convert_to_numbers(roman_string: str) -> int:
+def roman_numbers(roman_string: str) -> int:
     """Convert roman numerals to numbers.
 
     Args:
@@ -26,4 +25,15 @@ def convert_to_numbers(roman_string: str) -> int:
 
     return sum
 
-# print(convert_to_numbers('III'))
+if __name__ == '__main__':
+    # COMPSCI7327's test cases
+    assert roman_numbers('III') == 3
+    assert roman_numbers('LVIII') == 58
+    assert roman_numbers('MCMXCIV') == 1994
+
+    # Extra test cases
+    assert roman_numbers('MMMCMXCIX') == 3999
+    assert roman_numbers('DCXLIX') == 649
+    assert roman_numbers('MMXXII') == 2022
+
+    print('All test case passed.')
