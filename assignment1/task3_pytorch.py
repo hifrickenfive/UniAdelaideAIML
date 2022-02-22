@@ -5,6 +5,7 @@ from torchvision import datasets
 from torch import optim
 from torch import nn
 import matplotlib.pyplot as plt
+import math
 
 
 def get_data(train_cut=0.7, val_cut=0.1, test_cut=0.2, concat=False):
@@ -122,6 +123,7 @@ def eval_model(dataloader, model, loss_function, data_group):
         model (pytorch model object)
         loss_function (pytorch loss_function object)
         data_group ('str'): The name of the data under evaluation: e.g. training, validation, testing
+        save_model(boolean, optional)
 
     Returns:
         accuracy (float)
@@ -133,6 +135,7 @@ def eval_model(dataloader, model, loss_function, data_group):
 
     losses = 0
     correct_prediction = 0
+    best_loss = math.inf
 
     with torch.no_grad():
         for X, y in dataloader:
@@ -152,7 +155,7 @@ def eval_model(dataloader, model, loss_function, data_group):
     return 100*correct_prediction, losses
 
 
-def plot_curve(num_epochs: int, train_result: list, val_result: list, test_result: list, result_type=''):
+def plot_curve(num_epochs: int, train_result: list, val_result: list, test_result: list, result_type='', save_image=False, show_image=False):
     """Plots a single curve that overlays training, validation and test results.
 
     Args:
@@ -161,6 +164,8 @@ def plot_curve(num_epochs: int, train_result: list, val_result: list, test_resul
         val_result (list)
         test_result (list)
         result_type (str, optional): plot title. Defaults to ''.
+        save_image(boolean, optional)
+        show_image(boolean, optional)
     """
 
     epochs = list(range(1, num_epochs+1))
@@ -173,8 +178,12 @@ def plot_curve(num_epochs: int, train_result: list, val_result: list, test_resul
     plt.xlabel('Epoch No.')
     plt.title(f'{result_type} vs. data set')
     plt.xticks(epochs, epochs)
-    plt.show()
+    
+    if save_image:
+        plt.savefig(result_type + '.png')
 
+    if show_image:
+        plt.show()
 
 def print_banner(message: str):
     """Prints a pretty banner in the terminal."""
@@ -185,7 +194,7 @@ def print_banner(message: str):
 
 if __name__ == '__main__':
     # Set hyperparams
-    epochs = 5
+    epochs = 3
 
     # Get data
     train_data, val_data, test_data = get_data()
@@ -227,6 +236,6 @@ if __name__ == '__main__':
     print_banner('Training complete! Phew that was exhausting.')
 
     # Plot results
-    print_banner('Plotting...remember to close each plot to resume the script.')
-    plot_curve(epochs, acc_train, acc_val, acc_test, 'accuracy')
-    plot_curve(epochs, loss_train, loss_val, loss_test, 'loss')
+    print_banner('Plotting....')
+    plot_curve(epochs, acc_train, acc_val, acc_test, 'accuracy', save_image=True, show_image=True)
+    plot_curve(epochs, loss_train, loss_val, loss_test, 'loss', save_image=True, show_image=True)
