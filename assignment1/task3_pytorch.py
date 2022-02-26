@@ -129,13 +129,12 @@ def eval_model(dataloader, model, loss_function, data_group):
         accuracy (float)
         loss (float)
     """
-    size = len(dataloader.dataset)
+    size = len(dataloader.dataset) # TODO: Check if size == num_images
     num_images_in_dataset = len(dataloader)
     model.eval()
 
     losses = 0
     correct_prediction = 0
-    best_loss = math.inf
 
     with torch.no_grad():
         for X, y in dataloader:
@@ -148,8 +147,8 @@ def eval_model(dataloader, model, loss_function, data_group):
             losses += loss_function(prediction, y).item()
             correct_prediction += (prediction.argmax(1) == y).type(torch.float).sum().item()
 
-    av_loss = losses / num_images_in_dataset
-    correct_prediction /= size
+    av_loss = losses / num_images_in_dataset # TODO: Check calculation correct
+    correct_prediction /= size # TODO: Check calculation is correct
     print(f"{data_group} Result: \n Accuracy: {(100*correct_prediction):>0.1f}%, Average loss: {av_loss:>5f}")
 
     return 100*correct_prediction, losses
@@ -176,7 +175,7 @@ def plot_curve(num_epochs: int, train_result: list, val_result: list, test_resul
     ax.legend()
     plt.ylabel(result_type)
     plt.xlabel('Epoch No.')
-    plt.title(f'{result_type} vs. data set')
+    plt.title(f'MNIST data 3x Layer CNN: {result_type} vs. Epoch Number')
     plt.xticks(epochs, epochs)
     
     if save_image:
@@ -194,7 +193,7 @@ def print_banner(message: str):
 
 if __name__ == '__main__':
     # Set hyperparams
-    epochs = 3
+    epochs = 20
 
     # Get data
     train_data, val_data, test_data = get_data()
