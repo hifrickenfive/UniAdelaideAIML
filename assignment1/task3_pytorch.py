@@ -5,7 +5,6 @@ from torchvision import datasets
 from torch import optim
 from torch import nn
 import matplotlib.pyplot as plt
-import math
 
 
 def get_data(train_cut=0.7, val_cut=0.1, test_cut=0.2, concat=False):
@@ -17,8 +16,8 @@ def get_data(train_cut=0.7, val_cut=0.1, test_cut=0.2, concat=False):
         test_cut (float, optional): Fraction of total MNIST data. Defaults to 0.2.
         concat (boolean, optional): True to concatenat the MNIST training and data set before slicing.
     """
-    train_data = datasets.MNIST(root='data', train=True, transform = ToTensor(), download = True)       
-    test_data = datasets.MNIST(root='data', train=False, transform = ToTensor(), download = False)
+    train_data = datasets.MNIST(root='data', train=True, transform=ToTensor(), download=True)
+    test_data = datasets.MNIST(root='data', train=False, transform=ToTensor(), download=False)
 
     if concat:
         all_data = ConcatDataset([train_data, test_data])
@@ -69,7 +68,7 @@ class CNN(nn.Module):
         )
         self.fc_layers = nn.Sequential(
             nn.Linear(16*6*6, num_classes),  # input= num_output_channels_from_CNN x image dimension (6x6)
-            # Do not add an activation function after this. This is the final output layer! This caused me so much grief. 
+            # Do not add an activation function after this. This is the final output layer! This caused me so much grief.
         )
 
     def forward(self, x):
@@ -129,8 +128,8 @@ def eval_model(dataloader, model, loss_function, data_group):
         accuracy (float)
         loss (float)
     """
-    size = len(dataloader.dataset) # TODO: Check if size == num_images
-    num_images_in_dataset = len(dataloader)
+    num_images_in_dataset = len(dataloader.dataset)
+    num_batches_in_dataloader = len(dataloader)
     model.eval()
 
     losses = 0
@@ -147,9 +146,9 @@ def eval_model(dataloader, model, loss_function, data_group):
             losses += loss_function(prediction, y).item()
             correct_prediction += (prediction.argmax(1) == y).type(torch.float).sum().item()
 
-    av_loss = losses / num_images_in_dataset # TODO: Check calculation correct
-    correct_prediction /= size # TODO: Check calculation is correct
-    print(f"{data_group} Result: \n Accuracy: {(100*correct_prediction):>0.1f}%, Average loss: {av_loss:>5f}")
+    av_loss_per_batch = losses / num_batches_in_dataloader
+    correct_prediction /= num_images_in_dataset
+    print(f"{data_group} Result: \n Accuracy: {(100*correct_prediction):>0.1f}%, Average loss: {av_loss_per_batch:>5f}")
 
     return 100*correct_prediction, losses
 
@@ -177,12 +176,13 @@ def plot_curve(num_epochs: int, train_result: list, val_result: list, test_resul
     plt.xlabel('Epoch No.')
     plt.title(f'MNIST data 3x Layer CNN: {result_type} vs. Epoch Number')
     plt.xticks(epochs, epochs)
-    
+
     if save_image:
         plt.savefig(result_type + '.png')
 
     if show_image:
         plt.show()
+
 
 def print_banner(message: str):
     """Prints a pretty banner in the terminal."""
@@ -199,7 +199,7 @@ if __name__ == '__main__':
     train_data, val_data, test_data = get_data()
 
     # Load data into Pytorch loader
-    train_loader = DataLoader(train_data, batch_size=32) 
+    train_loader = DataLoader(train_data, batch_size=32)
     val_loader = DataLoader(val_data, batch_size=32)
     test_loader = DataLoader(test_data, batch_size=32)
 
@@ -224,7 +224,7 @@ if __name__ == '__main__':
         _acc_val, _loss_val = eval_model(val_loader, model, loss_function, 'Validation')
         _acc_test, _loss_test = eval_model(test_loader, model, loss_function, 'Test')
 
-        acc_train.append(_acc_train) 
+        acc_train.append(_acc_train)
         acc_val.append(_acc_val)
         acc_test.append(_acc_test)
 
