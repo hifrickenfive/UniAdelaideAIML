@@ -1,0 +1,1 @@
+Hello COMP SCI 7327 <br> This is our new text file<br> and this is another line. <br>Why? Because this is a basic task.
