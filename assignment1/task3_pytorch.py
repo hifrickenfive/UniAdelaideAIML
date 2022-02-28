@@ -199,9 +199,9 @@ if __name__ == '__main__':
     train_data, val_data, test_data = get_data()
 
     # Load data into Pytorch loader
-    train_loader = DataLoader(train_data, batch_size=32)
-    val_loader = DataLoader(val_data, batch_size=32)
-    test_loader = DataLoader(test_data, batch_size=32)
+    train_loader = DataLoader(train_data, batch_size=32, shuffle=True)
+    val_loader = DataLoader(val_data, batch_size=32, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=32, shuffle=True)
 
     # Setup model
     model = CNN()
