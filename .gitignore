@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Other extensions
+.bin
+.gz
+
 # Distribution / packaging
 .Python
 build/
@@ -62,7 +66,7 @@ db.sqlite3
 db.sqlite3-journal
 
 # Flask stuff:
-instance/
+instance/1
 .webassets-cache
 
 # Scrapy stuff:
